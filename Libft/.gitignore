@@ -24,7 +24,7 @@
 
 # Shared objects (inc. Windows DLLs)
 *.dll
-*.so
+*.so 
 *.so.*
 *.dylib
 
@@ -50,4 +50,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-Pipex
+
+libft_tester/*
