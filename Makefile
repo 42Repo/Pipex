@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/01/11 19:44:33 by asuc             ###   ########.fr        #
+#    Updated: 2024/01/11 20:05:09 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -47,7 +47,6 @@ start :
 
 $(NAME) : $(OBJ)
 	@make --quiet --no-print-directory -C $(libft)
-	@make --quiet --no-print-directory -j -C $(MacroLibX)
 	@cp $(libft)libft.a libft.a
 	@clang -gdwarf-4 -fPIE $(CFLAGS) -o $(NAME) $(OBJ) libft.a
 	@echo "\n$(BGreen)Compilation Final $(NAME)$(RESET)"
