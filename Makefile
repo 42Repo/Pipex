@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/01/11 20:05:09 by asuc             ###   ########.fr        #
+#    Updated: 2024/01/17 00:44:22 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -61,6 +61,8 @@ fclean : clean
 	@rm -f $(NAME) libft.a
 	@echo "$(BRed)Erase $(NAME), libft.a(RESET)"
 
+valgrind: all
+	@valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) in cat ls out
 
 re : fclean all
 

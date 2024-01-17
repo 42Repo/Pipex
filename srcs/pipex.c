@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/12 00:15:24 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/17 02:15:54 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,19 +27,127 @@ int	clean_pipex(t_pipex *pipex_p)
 		free(pipex_p->cmd_paths[i]);
 		i++;
 	}
-	free(pipex_p);
+	free(pipex_p->cmd_paths);
+	return (0);
+}
+
+// for ["/bin/cat", "/usr/bin/head", "/usr/bin/wc"], the ft_parse_args will use ft_split to yield a 2D array like this one: [["cat"], ["head", "-n", "5"], ["wc", "-l"]] (remember to NULL terminate your arrays!).
+int	parse_args(t_pipex *pipex_p, char **ag, int ac)
+{
+	int		i;
+	int		j;
+
+	i = 2;
+	j = 0;
+	pipex_p->cmd_args = ft_calloc(sizeof(char **) , pipex_p->cmd_count + 1);
+	while (i < ac - 1)
+	{
+		pipex_p->cmd_args[j] = ft_split(ag[i], ' ');
+		if (pipex_p->cmd_args[j] == NULL)
+			return (-1);
+		i++;
+		j++;
+	}
+	return (0);
+}
+
+int	exec_pipex(t_pipex *pipex_p, int i)
+{
+	int		pid;
+	int		status;
+	int		pipefd[2];
+
+	if (pipe(pipefd) == -1)
+	{
+		perror("pipe");
+		return (-1);
+	}
+	pid = fork();
+	if (pid == -1)
+	{
+		perror("fork");
+		return (-1);
+	}
+	printf("statusdeb = \n");
+	if (pid == 0)
+	{
+		if (i == 0)
+		{
+			if (pipex_p->here_doc == true)
+			{
+				dup2(pipefd[1], STDOUT_FILENO);
+				close(pipefd[0]);
+				close(pipefd[1]);
+				execve("/bin/cat", pipex_p->cmd_args[i], NULL);
+			}
+			else
+			{
+				dup2(pipex_p->in_fd, STDIN_FILENO);
+				dup2(pipefd[1], STDOUT_FILENO);
+				close(pipefd[0]);
+				close(pipefd[1]);
+				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], NULL);
+			}
+		}
+		else if (i == pipex_p->cmd_count - 1)
+		{
+			// printf("statusin = \n");
+			if (pipex_p->is_invalid_infile == true)
+			{
+				dup2(pipefd[0], STDIN_FILENO);
+				close(pipefd[0]);
+				close(pipefd[1]);
+				execve("/usr/bin/wc", pipex_p->cmd_args[i], NULL);
+			}
+			else
+			{
+				dup2(pipefd[0], STDIN_FILENO);
+				printf("statusin2 = \n");
+				
+				printf("pipex_p->cmd_paths[i] = %s\n", pipex_p->cmd_paths[i]);
+				close(pipefd[0]);
+				close(pipefd[1]);
+				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], NULL);
+			}
+		}
+		else
+		{
+			dup2(pipefd[0], STDIN_FILENO);
+			dup2(pipefd[1], STDOUT_FILENO);
+			close(pipefd[0]);
+			close(pipefd[1]);
+			execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], NULL);
+		}
+	}
+	else
+	{
+		waitpid(pid, &status, 0);
+		close(pipefd[0]);
+		close(pipefd[1]);
+	}
+	printf("statusfim = \n");
 	return (0);
 }
 
 int	main(int ac, char **ag, char **envp)
 {
 	t_pipex	pipex_p;
+	int		i;
 
+	i = 0;
 	init_pipex(&pipex_p);
 	if (check_args(&pipex_p, ac, ag) == -1)
 		return (-1);
 	if (parse_cmds(&pipex_p, ag, ac, envp) == -1)
 		return (-1);
+	if (parse_args(&pipex_p, ag, ac) == -1)
+		return (-1);
+	while (i < pipex_p.cmd_count)
+	{
+		exec_pipex(&pipex_p, i);
+		i++;
+		printf("i = %d\n", i);
+	}
 	// pipex(ag, envp);
 	clean_pipex(&pipex_p);
 	return (0);
@@ -95,7 +203,7 @@ char	**copy_tab(char **tab)
 	i = 0;
 	while (tab[i])
 		i++;
-	new_tab = malloc(sizeof(char *) * (i + 2));
+	new_tab = malloc(sizeof(char *) * (i + 1));
 	if (new_tab == NULL)
 		return (NULL);
 	i = 0;
@@ -108,6 +216,29 @@ char	**copy_tab(char **tab)
 	return (new_tab);
 }
 
+void	free_tab(char ***tab)
+{
+	int	i;
+
+	i = 0;
+	while ((*tab)[i] != NULL)
+	{
+		free((*tab)[i]);
+		i++;
+	}
+	free(*tab);
+}
+
+int	ft_tablen(char **tab)
+{
+	int	i;
+
+	i = 0;
+	while (tab[i])
+		i++;
+	return (i);
+}
+
 // on recupere tous les chemins dans le path des commandes dont on a besoin
 int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp)
 {
@@ -115,6 +246,7 @@ int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp)
 	char	**tmp_path;
 	int		j;
 	char	**path;
+	char	**ag2;
 
 	j = 2;
 	i = 0;
@@ -123,28 +255,30 @@ int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp)
 	path = add_slash(path);
 	if (path == NULL)
 		return (-1);
-	pipex_p->cmd_paths = malloc(sizeof(char *) * (ac - 3));
+	pipex_p->cmd_paths = ft_calloc(sizeof(char *) , (ac - 2));
 	while (j < ac - 1)
 	{
 		i = 0;
-		tmp_path = copy_tab(path);
-		while (tmp_path[i])
+		ag2 = ft_split(ag[j], ' ');
+		tmp_path = ft_calloc(sizeof(char *), (ft_tablen(path) + 1));
+		while (path[i])
 		{
-			tmp_path[i] = ft_strjoin(path[i], ag[j]);
+			tmp_path[i] = ft_strjoin(path[i], ag2[0]);
 			i++;
 		}
-		i = 0;
-		while (tmp_path[i])
-		{
-			ft_printf("tmp_path[%d] = %s\n", i, tmp_path[i]);
-			ft_printf("ag[%d] = %s\n", j, ag[j]);
-			i++;
-		}
+		free_tab(&ag2);
 		i = 0;
 		while (tmp_path[i])
 		{
 			if (access(tmp_path[i], F_OK) == 0)
-				pipex_p->cmd_paths[pipex_p->cmd_count] = ft_strdup(tmp_path[i]);
+			{
+				if (access(tmp_path[i], X_OK) == 0)
+				{
+					pipex_p->cmd_paths[pipex_p->cmd_count] = \
+							ft_strdup(tmp_path[i]);
+					break ;
+				}
+			}
 			i++;
 		}
 		if (pipex_p->cmd_paths[pipex_p->cmd_count] == NULL)
@@ -152,22 +286,12 @@ int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp)
 			ft_printf("%s: command not found\n", ag[j]);
 			return (-1);
 		}
+		free_tab(&tmp_path);
 		pipex_p->cmd_count++;
 		j++;
-		i = 0;
-		while (tmp_path[i])
-		{
-			free(tmp_path[i]);
-			i++;
-		}
 	}
-	i = 0;
-	while (i < pipex_p->cmd_count)
-	{
-		ft_printf("cmd_paths[%d] = %s\n", i, pipex_p->cmd_paths[i]);
-		i++;
-	}
-	ft_printf("cmd_count = %d\n", pipex_p->cmd_count);
+	pipex_p->cmd_paths[pipex_p->cmd_count] = NULL;
+	free_tab(&path);
 	return (0);
 }
 
@@ -210,7 +334,6 @@ int	check_args(t_pipex	*pipex_p, int ac, char **ag)
 
 int	*init_pipex(t_pipex *pipex)
 {
-	pipex = malloc(sizeof(t_pipex));
 	if (pipex == NULL)
 		return (NULL);
 	pipex->in_fd = 0;
