@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/17 02:15:54 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/18 18:15:22 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,7 +51,7 @@ int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 	return (0);
 }
 
-int	exec_pipex(t_pipex *pipex_p, int i)
+int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 {
 	int		pid;
 	int		status;
@@ -68,7 +68,7 @@ int	exec_pipex(t_pipex *pipex_p, int i)
 		perror("fork");
 		return (-1);
 	}
-	printf("statusdeb = \n");
+	// printf("statusdeb = \n");
 	if (pid == 0)
 	{
 		if (i == 0)
@@ -102,12 +102,18 @@ int	exec_pipex(t_pipex *pipex_p, int i)
 			else
 			{
 				dup2(pipefd[0], STDIN_FILENO);
-				printf("statusin2 = \n");
-				
-				printf("pipex_p->cmd_paths[i] = %s\n", pipex_p->cmd_paths[i]);
+				// printf("statusin2 = \n");
+				// printf("pipex_p->cmd_paths[i] = %s\n", pipex_p->cmd_paths[i]);
 				close(pipefd[0]);
 				close(pipefd[1]);
-				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], NULL);
+				int j = 0;
+				while (pipex_p->cmd_args[i])
+				{
+					printf("pipex_p->cmd_args[i] = %s\n", pipex_p->cmd_args[0][j+1]);
+					j++;
+				}
+				printf("pipex_p->cmd_paths[i] = %s\n", pipex_p->cmd_paths[i]);
+				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i] + 1, envp);
 			}
 		}
 		else
@@ -121,11 +127,11 @@ int	exec_pipex(t_pipex *pipex_p, int i)
 	}
 	else
 	{
-		waitpid(pid, &status, 0);
 		close(pipefd[0]);
 		close(pipefd[1]);
+		waitpid(pid, &status, 0);
 	}
-	printf("statusfim = \n");
+	// printf("statusfim = \n");
 	return (0);
 }
 
@@ -144,9 +150,9 @@ int	main(int ac, char **ag, char **envp)
 		return (-1);
 	while (i < pipex_p.cmd_count)
 	{
-		exec_pipex(&pipex_p, i);
+		exec_pipex(&pipex_p, i, envp);
 		i++;
-		printf("i = %d\n", i);
+		// printf("i = %d\n", i);
 	}
 	// pipex(ag, envp);
 	clean_pipex(&pipex_p);
