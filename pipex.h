@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:44:39 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/11 21:54:53 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/19 19:06:37 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,7 @@ typedef struct s_pipex
 	char	**cmd_paths;
 	char	***cmd_args;
 	int		cmd_count;
+	char	*limiter;
 }	t_pipex;
 
 #endif

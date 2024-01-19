@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/18 18:15:22 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/19 19:52:48 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,9 +51,43 @@ int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 	return (0);
 }
 
+int	here_doc(t_pipex *pipex, int pipefd[2])
+{
+	char	*line;
+
+	// on cree un tmp file ou on met tout ce qui est ecrit dans le terminal et apres on le met en infd
+	close(pipex->in_fd);
+	pipex->in_fd = open("tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
+	dup2(pipex->in_fd, STDIN_FILENO);
+	dup2(pipefd[1], STDOUT_FILENO);
+	close(pipefd[0]);
+	if (pipex->in_fd < 0)
+	{
+		perror("open");
+		return (-1);
+	}
+	ft_printf("pipe heredoc> ");
+	line = get_next_line(0);
+	line[ft_strlen(line) - 1] = '\0';
+	while (line > 0)
+	{
+		ft_putendl_fd(line, pipex->in_fd);
+		free(line);
+		ft_printf("pipe heredoc> ");
+		line = get_next_line(0);
+		line[ft_strlen(line) - 1] = '\0';
+		if (ft_strncmp(line, pipex->limiter, ft_strlen(pipex->limiter)) == 0)
+		{
+			free(line);
+			break ;
+		}
+	}
+	return (0);
+}
+
 int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 {
-	int		pid;
+	pid_t	pid;
 	int		status;
 	int		pipefd[2];
 
@@ -68,70 +102,57 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 		perror("fork");
 		return (-1);
 	}
-	// printf("statusdeb = \n");
+
 	if (pid == 0)
 	{
 		if (i == 0)
 		{
 			if (pipex_p->here_doc == true)
 			{
-				dup2(pipefd[1], STDOUT_FILENO);
 				close(pipefd[0]);
-				close(pipefd[1]);
-				execve("/bin/cat", pipex_p->cmd_args[i], NULL);
+				here_doc(pipex_p, pipefd);
+			}
+			else if (pipex_p->is_invalid_infile == true)
+			{
+				// invalid_infile(pipex_p);
 			}
 			else
 			{
 				dup2(pipex_p->in_fd, STDIN_FILENO);
 				dup2(pipefd[1], STDOUT_FILENO);
-				close(pipefd[0]);
 				close(pipefd[1]);
-				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], NULL);
-			}
-		}
-		else if (i == pipex_p->cmd_count - 1)
-		{
-			// printf("statusin = \n");
-			if (pipex_p->is_invalid_infile == true)
-			{
-				dup2(pipefd[0], STDIN_FILENO);
 				close(pipefd[0]);
-				close(pipefd[1]);
-				execve("/usr/bin/wc", pipex_p->cmd_args[i], NULL);
-			}
-			else
-			{
-				dup2(pipefd[0], STDIN_FILENO);
-				// printf("statusin2 = \n");
-				// printf("pipex_p->cmd_paths[i] = %s\n", pipex_p->cmd_paths[i]);
-				close(pipefd[0]);
-				close(pipefd[1]);
-				int j = 0;
-				while (pipex_p->cmd_args[i])
+				if (execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp) == -1)
 				{
-					printf("pipex_p->cmd_args[i] = %s\n", pipex_p->cmd_args[0][j+1]);
-					j++;
+					perror("execve");
+					return (-1);
 				}
-				printf("pipex_p->cmd_paths[i] = %s\n", pipex_p->cmd_paths[i]);
-				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i] + 1, envp);
 			}
 		}
 		else
 		{
-			dup2(pipefd[0], STDIN_FILENO);
-			dup2(pipefd[1], STDOUT_FILENO);
+			printf("i = est %d\n", i);
+			dup2(pipex_p->in_fd, STDIN_FILENO);
+			if (i == pipex_p->cmd_count - 1)
+				dup2(pipex_p->out_fd, STDOUT_FILENO);
+			else
+				dup2(pipefd[1], STDOUT_FILENO);
 			close(pipefd[0]);
 			close(pipefd[1]);
-			execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], NULL);
+			if (execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp) == -1)
+			{
+				perror("execve");
+				return (-1);
+			}
 		}
 	}
 	else
 	{
-		close(pipefd[0]);
-		close(pipefd[1]);
 		waitpid(pid, &status, 0);
+		close(pipefd[1]);
+		pipex_p->in_fd = pipefd[0];
+
 	}
-	// printf("statusfim = \n");
 	return (0);
 }
 
@@ -144,16 +165,24 @@ int	main(int ac, char **ag, char **envp)
 	init_pipex(&pipex_p);
 	if (check_args(&pipex_p, ac, ag) == -1)
 		return (-1);
-	if (parse_cmds(&pipex_p, ag, ac, envp) == -1)
-		return (-1);
-	if (parse_args(&pipex_p, ag, ac) == -1)
-		return (-1);
+	if (pipex_p.here_doc == false)
+	{
+		if (parse_cmds(&pipex_p, ag, ac, envp) == -1)
+			return (-1);
+	}
+	else
+	{
+		if (parse_cmds(&pipex_p, ag + 1, ac - 1, envp) == -1)
+			return (-1);
+	}
 	while (i < pipex_p.cmd_count)
 	{
+
 		exec_pipex(&pipex_p, i, envp);
 		i++;
-		// printf("i = %d\n", i);
+		printf("i = %d\n", i);
 	}
+
 	// pipex(ag, envp);
 	clean_pipex(&pipex_p);
 	return (0);
@@ -321,7 +350,13 @@ int	check_args(t_pipex	*pipex_p, int ac, char **ag)
 		return (-1);
 	}
 	if (ft_strncmp(ag[1], "here_doc", 8) == 0)
+	{
 		pipex_p->here_doc = true;
+		pipex_p->in_fd = 0;
+		pipex_p->limiter = ft_strdup(ag[2]);
+		pipex_p->out_fd = open(ag[ac - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
+		return (0);
+	}
 	if (ft_strncmp(ag[1], "/dev/urandom", ft_strlen(ag[1])) == 0)
 		pipex_p->is_invalid_infile = true;
 	f1 = open(ag[1], O_RDONLY);
