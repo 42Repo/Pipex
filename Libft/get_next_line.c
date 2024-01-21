@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/11/08 19:51:27 by asuc              #+#    #+#             */
-/*   Updated: 2023/11/09 00:49:29 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/21 20:10:06 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,7 +63,7 @@ static char	*read_line(int fd, char **buffer)
 	while (!nl_ptr)
 	{
 		bytes_read = read(fd, read_buffer, BUFFER_SIZE);
-		if (bytes_read <= 0)
+		if (bytes_read <= 0 && bytes_read != -1)
 		{
 			free(read_buffer);
 			return (join_line(buffer, -1));

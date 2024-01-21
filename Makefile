@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/01/17 00:44:22 by asuc             ###   ########.fr        #
+#    Updated: 2024/01/21 18:38:20 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -64,6 +64,8 @@ fclean : clean
 valgrind: all
 	@valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) in cat ls out
 
+test: all
+	@./$(NAME) in wc wc out
 re : fclean all
 
 .PHONY: all fclean clean re

@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/19 19:52:48 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/21 20:07:29 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,37 +51,46 @@ int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 	return (0);
 }
 
-int	here_doc(t_pipex *pipex, int pipefd[2])
+int	test_open(void)
+{
+	if (access("tmp", F_OK) == -1)
+	{
+		ft_printf("Error: tmp file does not exist\n");
+		return (-1);
+	}
+	if (access("tmp", W_OK) == -1)
+	{
+		ft_printf("Error: cannot write in tmp file\n");
+		return (-1);
+	}
+	return (0);
+}
+
+int	here_doc(t_pipex *pipex)
 {
 	char	*line;
 
-	// on cree un tmp file ou on met tout ce qui est ecrit dans le terminal et apres on le met en infd
-	close(pipex->in_fd);
-	pipex->in_fd = open("tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
-	dup2(pipex->in_fd, STDIN_FILENO);
-	dup2(pipefd[1], STDOUT_FILENO);
-	close(pipefd[0]);
-	if (pipex->in_fd < 0)
+	line = ft_strdup("");
+	while (line != NULL)
 	{
-		perror("open");
-		return (-1);
-	}
-	ft_printf("pipe heredoc> ");
-	line = get_next_line(0);
-	line[ft_strlen(line) - 1] = '\0';
-	while (line > 0)
-	{
-		ft_putendl_fd(line, pipex->in_fd);
 		free(line);
+		line = NULL;
+		if (test_open() == -1)
+			return (-1);
 		ft_printf("pipe heredoc> ");
 		line = get_next_line(0);
 		line[ft_strlen(line) - 1] = '\0';
 		if (ft_strncmp(line, pipex->limiter, ft_strlen(pipex->limiter)) == 0)
 		{
+			printf("line = %s\n", line);
 			free(line);
+			line = NULL;
 			break ;
 		}
+		ft_putendl_fd(line, pipex->in_fd);
 	}
+	if (line != NULL)
+		free(line);
 	return (0);
 }
 
@@ -102,22 +111,15 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 		perror("fork");
 		return (-1);
 	}
-
 	if (pid == 0)
 	{
 		if (i == 0)
 		{
 			if (pipex_p->here_doc == true)
 			{
-				close(pipefd[0]);
-				here_doc(pipex_p, pipefd);
-			}
-			else if (pipex_p->is_invalid_infile == true)
-			{
-				// invalid_infile(pipex_p);
-			}
-			else
-			{
+				pipex_p->in_fd = open("tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
+				if (here_doc(pipex_p) == -1)
+					return (-1);
 				dup2(pipex_p->in_fd, STDIN_FILENO);
 				dup2(pipefd[1], STDOUT_FILENO);
 				close(pipefd[1]);
@@ -128,10 +130,33 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 					return (-1);
 				}
 			}
+			else if (pipex_p->is_invalid_infile == true)
+			{
+				// invalid_infile(pipex_p);
+			}
+			else
+			{
+				printf("first command\n");
+				// char	*buf = malloc(sizeof(char) * 1000);
+				// read(pipex_p->in_fd, buf, 1000);
+				// printf("buf = %s\n", buf);
+				close(pipefd[0]);
+				dup2(pipex_p->in_fd, STDIN_FILENO);
+				dup2(pipefd[1], STDOUT_FILENO);
+				close(pipefd[1]);
+				if (execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp) == -1)
+				{
+					perror("execve");
+					return (-1);
+				}
+			}
 		}
 		else
 		{
-			printf("i = est %d\n", i);
+			printf("second command\n");
+			char	*buf = malloc(sizeof(char) * 1000);
+			read(pipex_p->in_fd, buf, 1000);
+			printf("buf = %s\n", buf);
 			dup2(pipex_p->in_fd, STDIN_FILENO);
 			if (i == pipex_p->cmd_count - 1)
 				dup2(pipex_p->out_fd, STDOUT_FILENO);
@@ -149,8 +174,10 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 	else
 	{
 		waitpid(pid, &status, 0);
-		close(pipefd[1]);
-		pipex_p->in_fd = pipefd[0];
+		pipex_p->in_fd = dup(pipefd[1]);
+		char *buf = malloc(sizeof(char) * 1000);
+		read(pipefd[1], buf, 1000);
+		printf("bufPERE = %s\n", buf);
 
 	}
 	return (0);
@@ -177,10 +204,10 @@ int	main(int ac, char **ag, char **envp)
 	}
 	while (i < pipex_p.cmd_count)
 	{
-
-		exec_pipex(&pipex_p, i, envp);
-		i++;
+		if (exec_pipex(&pipex_p, i, envp) == -1)
+			return (-1);
 		printf("i = %d\n", i);
+		i++;
 	}
 
 	// pipex(ag, envp);
