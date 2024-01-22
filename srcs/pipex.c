@@ -6,16 +6,13 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/21 20:07:29 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/22 17:54:44 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../pipex.h"
 
-// int	pipex(char **argv, char **envp);
-int	*init_pipex(t_pipex *pipex);
-int	check_args(t_pipex *pipex_p, int ac, char **ag);
-int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp);
+#define MAX_URANDOM_BYTES 65536
 
 int	clean_pipex(t_pipex *pipex_p)
 {
@@ -28,18 +25,29 @@ int	clean_pipex(t_pipex *pipex_p)
 		i++;
 	}
 	free(pipex_p->cmd_paths);
+	i = 0;
+	while (i < pipex_p->cmd_count)
+	{
+		free_tab(&pipex_p->cmd_args[i]);
+		i++;
+	}
+	free(pipex_p->cmd_args);
+	if (pipex_p->limiter != NULL)
+		free(pipex_p->limiter);
+	close_all(pipex_p);
 	return (0);
 }
 
-// for ["/bin/cat", "/usr/bin/head", "/usr/bin/wc"], the ft_parse_args will use ft_split to yield a 2D array like this one: [["cat"], ["head", "-n", "5"], ["wc", "-l"]] (remember to NULL terminate your arrays!).
 int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 {
-	int		i;
-	int		j;
+	int	i;
+	int	j;
 
 	i = 2;
 	j = 0;
-	pipex_p->cmd_args = ft_calloc(sizeof(char **) , pipex_p->cmd_count + 1);
+	pipex_p->cmd_args = ft_calloc(sizeof(char **), pipex_p->cmd_count + 1);
+	if (pipex_p->here_doc == true)
+		i = 3;
 	while (i < ac - 1)
 	{
 		pipex_p->cmd_args[j] = ft_split(ag[i], ' ');
@@ -53,12 +61,12 @@ int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 
 int	test_open(void)
 {
-	if (access("tmp", F_OK) == -1)
+	if (access(".tmp", F_OK) == -1)
 	{
 		ft_printf("Error: tmp file does not exist\n");
 		return (-1);
 	}
-	if (access("tmp", W_OK) == -1)
+	if (access(".tmp", W_OK) == -1)
 	{
 		ft_printf("Error: cannot write in tmp file\n");
 		return (-1);
@@ -79,18 +87,75 @@ int	here_doc(t_pipex *pipex)
 			return (-1);
 		ft_printf("pipe heredoc> ");
 		line = get_next_line(0);
-		line[ft_strlen(line) - 1] = '\0';
 		if (ft_strncmp(line, pipex->limiter, ft_strlen(pipex->limiter)) == 0)
 		{
-			printf("line = %s\n", line);
 			free(line);
 			line = NULL;
 			break ;
 		}
+		line[ft_strlen(line) - 1] = '\0';
 		ft_putendl_fd(line, pipex->in_fd);
 	}
 	if (line != NULL)
 		free(line);
+	return (0);
+}
+
+void	invalid_infile(t_pipex *pipex_p)
+{
+	int		bytes_read;
+	char	buffer[MAX_URANDOM_BYTES];
+	int		urandom_fd;
+
+	urandom_fd = open("/dev/urandom", O_RDONLY);
+	if (urandom_fd == -1)
+	{
+		perror("Error opening /dev/urandom");
+		exit(EXIT_FAILURE);
+	}
+	bytes_read = read(urandom_fd, buffer, MAX_URANDOM_BYTES);
+	if (bytes_read == -1)
+	{
+		perror("Error reading from /dev/urandom");
+		close(urandom_fd);
+		exit(EXIT_FAILURE);
+	}
+	pipex_p->in_fd = open(".tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
+	if (pipex_p->in_fd == -1)
+	{
+		perror("Error opening temporary file");
+		close(urandom_fd);
+		exit(EXIT_FAILURE);
+	}
+	if (write(pipex_p->in_fd, buffer, bytes_read) == -1)
+	{
+		perror("Error writing to temporary file");
+		close(urandom_fd);
+		close(pipex_p->in_fd);
+		exit(EXIT_FAILURE);
+	}
+	close(urandom_fd);
+	close(pipex_p->in_fd);
+}
+
+
+int	pipe_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
+{
+	if (check_exec_command(pipex_p, i) == -1)
+	{
+		pipex_p->in_fd = dup((*pipefd)[1]);
+		close((*pipefd)[0]);
+		close((*pipefd)[1]);
+		return (-1);
+	}
+	dup2(pipex_p->in_fd, STDIN_FILENO);
+	dup2((*pipefd)[1], STDOUT_FILENO);
+	close((*pipefd)[0]);
+	close((*pipefd)[1]);
+	close(pipex_p->in_fd);
+	execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+	perror("execve");
+	exit(EXIT_FAILURE);
 	return (0);
 }
 
@@ -117,46 +182,50 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 		{
 			if (pipex_p->here_doc == true)
 			{
-				pipex_p->in_fd = open("tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
+				pipex_p->in_fd = open(".tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
 				if (here_doc(pipex_p) == -1)
 					return (-1);
+				close(pipex_p->in_fd);
+				if (check_exec_command(pipex_p, i) == -1)
+				{
+					exit(EXIT_FAILURE);
+				}
+				pipex_p->in_fd = open(".tmp", O_RDONLY);
 				dup2(pipex_p->in_fd, STDIN_FILENO);
 				dup2(pipefd[1], STDOUT_FILENO);
 				close(pipefd[1]);
 				close(pipefd[0]);
-				if (execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp) == -1)
-				{
-					perror("execve");
-					return (-1);
-				}
+				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+				perror("execve");
+				exit(EXIT_FAILURE);
 			}
 			else if (pipex_p->is_invalid_infile == true)
 			{
-				// invalid_infile(pipex_p);
-			}
-			else
-			{
-				printf("first command\n");
-				// char	*buf = malloc(sizeof(char) * 1000);
-				// read(pipex_p->in_fd, buf, 1000);
-				// printf("buf = %s\n", buf);
-				close(pipefd[0]);
+				invalid_infile(pipex_p);
+				pipex_p->in_fd = open(".tmp", O_RDONLY);
 				dup2(pipex_p->in_fd, STDIN_FILENO);
 				dup2(pipefd[1], STDOUT_FILENO);
 				close(pipefd[1]);
-				if (execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp) == -1)
-				{
-					perror("execve");
-					return (-1);
-				}
+				close(pipefd[0]);
+				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+				perror("execve");
+				exit(EXIT_FAILURE);
+			}
+			else
+			{
+				pipe_exec(pipex_p, i, envp, &pipefd);
 			}
 		}
 		else
 		{
-			printf("second command\n");
-			char	*buf = malloc(sizeof(char) * 1000);
-			read(pipex_p->in_fd, buf, 1000);
-			printf("buf = %s\n", buf);
+			if (check_exec_command(pipex_p, i) == -1)
+			{
+				close(pipex_p->in_fd);
+				close(pipefd[1]);
+				pipex_p->in_fd = dup(pipefd[0]);
+				close(pipefd[0]);
+				return (0);
+			}
 			dup2(pipex_p->in_fd, STDIN_FILENO);
 			if (i == pipex_p->cmd_count - 1)
 				dup2(pipex_p->out_fd, STDOUT_FILENO);
@@ -164,25 +233,39 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 				dup2(pipefd[1], STDOUT_FILENO);
 			close(pipefd[0]);
 			close(pipefd[1]);
-			if (execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp) == -1)
-			{
-				perror("execve");
-				return (-1);
-			}
+			execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+			perror("execve");
+			exit(EXIT_FAILURE);
 		}
 	}
 	else
 	{
 		waitpid(pid, &status, 0);
-		pipex_p->in_fd = dup(pipefd[1]);
-		char *buf = malloc(sizeof(char) * 1000);
-		read(pipefd[1], buf, 1000);
-		printf("bufPERE = %s\n", buf);
-
+		printf("i = %d\n", i);
+		if (i == 0)
+			unlink(".tmp");
+		close(pipefd[1]);
+		close(pipex_p->in_fd);
+		pipex_p->in_fd = dup(pipefd[0]);
+		close(pipefd[0]);
 	}
 	return (0);
 }
 
+// on check si la commande que l'on veut executer existe
+int	check_exec_command(t_pipex *pipex_p, int i)
+{
+	if (pipex_p->cmd_paths[i] != NULL)
+	{
+		if (access(pipex_p->cmd_paths[i], F_OK) == -1)
+		{
+			ft_printf("Error: command not found\n");
+			return (-1);
+		}
+		return (0);
+	}
+	return (-1);
+}
 int	main(int ac, char **ag, char **envp)
 {
 	t_pipex	pipex_p;
@@ -191,26 +274,26 @@ int	main(int ac, char **ag, char **envp)
 	i = 0;
 	init_pipex(&pipex_p);
 	if (check_args(&pipex_p, ac, ag) == -1)
-		return (-1);
+		return (0);
 	if (pipex_p.here_doc == false)
 	{
 		if (parse_cmds(&pipex_p, ag, ac, envp) == -1)
-			return (-1);
+			return (0);
 	}
 	else
 	{
 		if (parse_cmds(&pipex_p, ag + 1, ac - 1, envp) == -1)
-			return (-1);
+			return (0);
 	}
+	if (parse_args(&pipex_p, ag, ac) == -1)
+		return (0);
 	while (i < pipex_p.cmd_count)
 	{
 		if (exec_pipex(&pipex_p, i, envp) == -1)
 			return (-1);
-		printf("i = %d\n", i);
 		i++;
 	}
-
-	// pipex(ag, envp);
+	printf("ici");
 	clean_pipex(&pipex_p);
 	return (0);
 }
@@ -317,7 +400,7 @@ int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp)
 	path = add_slash(path);
 	if (path == NULL)
 		return (-1);
-	pipex_p->cmd_paths = ft_calloc(sizeof(char *) , (ac - 2));
+	pipex_p->cmd_paths = ft_calloc(sizeof(char *), (ac - 2));
 	while (j < ac - 1)
 	{
 		i = 0;
@@ -336,17 +419,11 @@ int	parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp)
 			{
 				if (access(tmp_path[i], X_OK) == 0)
 				{
-					pipex_p->cmd_paths[pipex_p->cmd_count] = \
-							ft_strdup(tmp_path[i]);
+					pipex_p->cmd_paths[pipex_p->cmd_count] = ft_strdup(tmp_path[i]);
 					break ;
 				}
 			}
 			i++;
-		}
-		if (pipex_p->cmd_paths[pipex_p->cmd_count] == NULL)
-		{
-			ft_printf("%s: command not found\n", ag[j]);
-			return (-1);
 		}
 		free_tab(&tmp_path);
 		pipex_p->cmd_count++;
@@ -366,28 +443,31 @@ int	close_all(t_pipex *pipex_p)
 	return (0);
 }
 
-int	check_args(t_pipex	*pipex_p, int ac, char **ag)
+int	check_args(t_pipex *pipex_p, int ac, char **ag)
 {
-	int	f1;
-	int	f2;
+	int		f1;
+	int		f2;
+	char	*limiter;
 
 	if (ac < 5)
 	{
-		ft_printf("Error: missing arguments\n");
+		// ft_printf("Error: missing arguments\n");
 		return (-1);
 	}
 	if (ft_strncmp(ag[1], "here_doc", 8) == 0)
 	{
 		pipex_p->here_doc = true;
 		pipex_p->in_fd = 0;
-		pipex_p->limiter = ft_strdup(ag[2]);
-		pipex_p->out_fd = open(ag[ac - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
+		limiter = ft_strdup(ag[2]);
+		pipex_p->limiter = ft_strjoin(limiter, "\n");
+		free(limiter);
+		pipex_p->out_fd = open(ag[ac - 1], O_CREAT | O_RDWR | O_APPEND, 0644);
 		return (0);
 	}
 	if (ft_strncmp(ag[1], "/dev/urandom", ft_strlen(ag[1])) == 0)
 		pipex_p->is_invalid_infile = true;
 	f1 = open(ag[1], O_RDONLY);
-	f2 = open(ag[ac - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
+	f2 = open(ag[ac - 1], O_CREAT | O_RDWR | O_APPEND, 0644);
 	pipex_p->in_fd = f1;
 	pipex_p->out_fd = f2;
 	if (f1 < 0 || f2 < 0)
@@ -411,30 +491,6 @@ int	*init_pipex(t_pipex *pipex)
 	pipex->cmd_paths = NULL;
 	pipex->cmd_args = NULL;
 	pipex->cmd_count = 0;
+	pipex->limiter = NULL;
 	return (0);
 }
-
-// int	pipex(char **argv, char **envp)
-// {
-// 	int		i;
-// 	char	*path;
-// 	char	**path_split;
-
-// 	i = 0;
-
-// 	i = 0;
-// 	while (path_split[i])
-// 	{
-// 		if (access(path_split[i], F_OK) == 0)
-// 			break ;
-// 		i++;
-// 	}
-// 	if (path_split[i] == NULL)
-// 	{
-// 		ft_printf("%s: command not found\n", argv[1]);
-// 		return (0);
-// 	}
-// 	if (execve(path_split[i], argv + 1, envp) == 0)
-// 		perror("execve error\n");
-// 	return (0);
-// }

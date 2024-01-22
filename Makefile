@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/01/21 18:38:20 by asuc             ###   ########.fr        #
+#    Updated: 2024/01/22 16:53:52 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -15,7 +15,7 @@ RESET		=	$(shell echo "\033[0m")
 BRed		=	$(shell echo "\033[1;31m")
 BCyan		=	$(shell echo "\033[1;36m")
 Green		=	$(shell echo "\033[0;32m")
-NAME		=	Pipex
+NAME		=	pipex
 COMP		=	clang
 CFLAGS		=	-Wall -Werror -Wextra
 libft		=	Libft/
@@ -62,7 +62,10 @@ fclean : clean
 	@echo "$(BRed)Erase $(NAME), libft.a(RESET)"
 
 valgrind: all
-	@valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) in cat ls out
+	@valgrind --trace-children=yes --track-fds=yes --log-fd=2 --error-limit=no --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) in cat cat out
+
+valgrindAll : all
+	@valgrind --track-fds=yes --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) here_doc maellapute cat cat out
 
 test: all
 	@./$(NAME) in wc wc out
