@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:44:39 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/22 23:04:23 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/23 17:14:12 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,7 @@ typedef struct s_pipex
 	char		*limiter;
 	t_random	random;
 	pid_t		*pid;
+	char		random_name[20];
 }			t_pipex;
 
 int			*init_pipex(t_pipex *pipex);
@@ -56,13 +57,12 @@ char		**find_path(char **envp);
 char		**add_slash(char **cmd_args);
 int			main(int ac, char **ag, char **envp);
 int			exec_pipex(t_pipex *pipex_p, int i, char **envp);
-void		invalid_infile(t_pipex *pipex_p);
+void		invalid_infile(t_pipex *pipex_p, int pipefd[][2]);
 int			here_doc(t_pipex *pipex);
-int			test_open(void);
+int			test_open(t_pipex *pipex_p);
 int			parse_args(t_pipex *pipex_p, char **ag, int ac);
-int			clean_pipex(t_pipex *pipex_p);
+int			clean_pipex(t_pipex *pipex_p, int mode);
 int			check_exec_command(t_pipex *pipex_p, int i);
-void		error_exit(char *error_msg);
 void		error_exit_fd(char *error_msg, int fd);
 void		pipe_first_exec(t_pipex *pipex_p, int i, char **envp,
 				int pipefd[][2]);
