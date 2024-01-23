@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/22 17:54:44 by asuc             ###   ########.fr       */
+/*   Updated: 2024/01/23 01:30:57 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,7 @@ int	clean_pipex(t_pipex *pipex_p)
 	free(pipex_p->cmd_args);
 	if (pipex_p->limiter != NULL)
 		free(pipex_p->limiter);
+	free(pipex_p->pid);
 	close_all(pipex_p);
 	return (0);
 }
@@ -63,12 +64,12 @@ int	test_open(void)
 {
 	if (access(".tmp", F_OK) == -1)
 	{
-		ft_printf("Error: tmp file does not exist\n");
+		perror("Error");
 		return (-1);
 	}
 	if (access(".tmp", W_OK) == -1)
 	{
-		ft_printf("Error: cannot write in tmp file\n");
+		perror("Error");
 		return (-1);
 	}
 	return (0);
@@ -101,35 +102,40 @@ int	here_doc(t_pipex *pipex)
 	return (0);
 }
 
+void	error_exit(char *error_msg)
+{
+	perror(error_msg);
+	exit(EXIT_FAILURE);
+}
+
+void	error_exit_fd(char *error_msg, int fd)
+{
+	perror(error_msg);
+	close(fd);
+	exit(EXIT_FAILURE);
+}
+
 void	invalid_infile(t_pipex *pipex_p)
 {
 	int		bytes_read;
 	char	buffer[MAX_URANDOM_BYTES];
 	int		urandom_fd;
 
-	urandom_fd = open("/dev/urandom", O_RDONLY);
+	if (pipex_p->random == file_random)
+		urandom_fd = open("/dev/random", O_RDONLY);
+	else
+		urandom_fd = open("/dev/urandom", O_RDONLY);
 	if (urandom_fd == -1)
-	{
-		perror("Error opening /dev/urandom");
-		exit(EXIT_FAILURE);
-	}
+		error_exit("Error");
 	bytes_read = read(urandom_fd, buffer, MAX_URANDOM_BYTES);
 	if (bytes_read == -1)
-	{
-		perror("Error reading from /dev/urandom");
-		close(urandom_fd);
-		exit(EXIT_FAILURE);
-	}
+		error_exit_fd("Error", urandom_fd);
 	pipex_p->in_fd = open(".tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
 	if (pipex_p->in_fd == -1)
-	{
-		perror("Error opening temporary file");
-		close(urandom_fd);
-		exit(EXIT_FAILURE);
-	}
+		error_exit_fd("Error", urandom_fd);
 	if (write(pipex_p->in_fd, buffer, bytes_read) == -1)
 	{
-		perror("Error writing to temporary file");
+		perror("Error");
 		close(urandom_fd);
 		close(pipex_p->in_fd);
 		exit(EXIT_FAILURE);
@@ -138,15 +144,17 @@ void	invalid_infile(t_pipex *pipex_p)
 	close(pipex_p->in_fd);
 }
 
-
-int	pipe_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
+void	pipe_first_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
 {
 	if (check_exec_command(pipex_p, i) == -1)
 	{
-		pipex_p->in_fd = dup((*pipefd)[1]);
 		close((*pipefd)[0]);
 		close((*pipefd)[1]);
-		return (-1);
+		clean_pipex(pipex_p);
+		close(0);
+		close(1);
+		close(2);
+		exit(EXIT_FAILURE);
 	}
 	dup2(pipex_p->in_fd, STDIN_FILENO);
 	dup2((*pipefd)[1], STDOUT_FILENO);
@@ -156,92 +164,107 @@ int	pipe_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
 	execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
 	perror("execve");
 	exit(EXIT_FAILURE);
-	return (0);
+}
+
+int	here_doc_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
+{
+	pipex_p->in_fd = open(".tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
+	if (here_doc(pipex_p) == -1)
+		exit(EXIT_FAILURE);
+	close(pipex_p->in_fd);
+	if (check_exec_command(pipex_p, i) == -1)
+	{
+		close((*pipefd)[0]);
+		close((*pipefd)[1]);
+		clean_pipex(pipex_p);
+		close(0);
+		close(1);
+		close(2);
+		exit(EXIT_FAILURE);
+	}
+	pipex_p->in_fd = open(".tmp", O_RDONLY);
+	dup2(pipex_p->in_fd, STDIN_FILENO);
+	dup2((*pipefd)[1], STDOUT_FILENO);
+	close((*pipefd)[1]);
+	close((*pipefd)[0]);
+	execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+	perror("execve");
+	exit(EXIT_FAILURE);
+}
+
+void	invalid_file_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
+{
+	invalid_infile(pipex_p);
+	pipex_p->in_fd = open(".tmp", O_RDONLY);
+	dup2(pipex_p->in_fd, STDIN_FILENO);
+	dup2((*pipefd)[1], STDOUT_FILENO);
+	close((*pipefd)[1]);
+	close((*pipefd)[0]);
+	execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+	perror("execve");
+	exit(EXIT_FAILURE);
+}
+
+int	error_pipex(char *error_msg)
+{
+	perror(error_msg);
+	return (-1);
+}
+
+void	pipe_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
+{
+	if (check_exec_command(pipex_p, i) == -1)
+	{
+		close((*pipefd)[1]);
+		close((*pipefd)[0]);
+		clean_pipex(pipex_p);
+		close(0);
+		close(1);
+		close(2);
+		close(pipex_p->in_fd);
+		close(pipex_p->out_fd);
+		exit(EXIT_FAILURE);
+	}
+	dup2(pipex_p->in_fd, STDIN_FILENO);
+	if (i == pipex_p->cmd_count - 1)
+		dup2(pipex_p->out_fd, STDOUT_FILENO);
+	else
+		dup2((*pipefd)[1], STDOUT_FILENO);
+	close((*pipefd)[0]);
+	close((*pipefd)[1]);
+	execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+	perror("execve");
+	exit(EXIT_FAILURE);
+}
+
+void child_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
+{
+	if (i == 0)
+	{
+		if (pipex_p->here_doc == true)
+			here_doc_exec(pipex_p, i, envp, pipefd);
+		else if (pipex_p->is_invalid_infile == true)
+			invalid_file_exec(pipex_p, i, envp, pipefd);
+		else
+			pipe_first_exec(pipex_p, i, envp, pipefd);
+	}
+	else
+		pipe_exec(pipex_p, i, envp, pipefd);
 }
 
 int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 {
-	pid_t	pid;
-	int		status;
 	int		pipefd[2];
 
 	if (pipe(pipefd) == -1)
-	{
-		perror("pipe");
-		return (-1);
-	}
-	pid = fork();
-	if (pid == -1)
-	{
-		perror("fork");
-		return (-1);
-	}
-	if (pid == 0)
-	{
-		if (i == 0)
-		{
-			if (pipex_p->here_doc == true)
-			{
-				pipex_p->in_fd = open(".tmp", O_CREAT | O_RDWR | O_TRUNC, 0644);
-				if (here_doc(pipex_p) == -1)
-					return (-1);
-				close(pipex_p->in_fd);
-				if (check_exec_command(pipex_p, i) == -1)
-				{
-					exit(EXIT_FAILURE);
-				}
-				pipex_p->in_fd = open(".tmp", O_RDONLY);
-				dup2(pipex_p->in_fd, STDIN_FILENO);
-				dup2(pipefd[1], STDOUT_FILENO);
-				close(pipefd[1]);
-				close(pipefd[0]);
-				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
-				perror("execve");
-				exit(EXIT_FAILURE);
-			}
-			else if (pipex_p->is_invalid_infile == true)
-			{
-				invalid_infile(pipex_p);
-				pipex_p->in_fd = open(".tmp", O_RDONLY);
-				dup2(pipex_p->in_fd, STDIN_FILENO);
-				dup2(pipefd[1], STDOUT_FILENO);
-				close(pipefd[1]);
-				close(pipefd[0]);
-				execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
-				perror("execve");
-				exit(EXIT_FAILURE);
-			}
-			else
-			{
-				pipe_exec(pipex_p, i, envp, &pipefd);
-			}
-		}
-		else
-		{
-			if (check_exec_command(pipex_p, i) == -1)
-			{
-				close(pipex_p->in_fd);
-				close(pipefd[1]);
-				pipex_p->in_fd = dup(pipefd[0]);
-				close(pipefd[0]);
-				return (0);
-			}
-			dup2(pipex_p->in_fd, STDIN_FILENO);
-			if (i == pipex_p->cmd_count - 1)
-				dup2(pipex_p->out_fd, STDOUT_FILENO);
-			else
-				dup2(pipefd[1], STDOUT_FILENO);
-			close(pipefd[0]);
-			close(pipefd[1]);
-			execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
-			perror("execve");
-			exit(EXIT_FAILURE);
-		}
-	}
+		return (error_pipex("pipe"));
+	pipex_p->pid[i] = fork();
+	if (pipex_p->pid[i] == -1)
+		return (error_pipex("fork"));
+	if (pipex_p->pid[i] == 0)
+		child_exec(pipex_p, i, envp, &pipefd);
 	else
 	{
-		waitpid(pid, &status, 0);
-		printf("i = %d\n", i);
 		if (i == 0)
 			unlink(".tmp");
 		close(pipefd[1]);
@@ -257,15 +280,17 @@ int	check_exec_command(t_pipex *pipex_p, int i)
 {
 	if (pipex_p->cmd_paths[i] != NULL)
 	{
-		if (access(pipex_p->cmd_paths[i], F_OK) == -1)
+		if (access(pipex_p->cmd_paths[i], F_OK) == -1
+			|| access(pipex_p->cmd_paths[i], X_OK) == -1)
 		{
-			ft_printf("Error: command not found\n");
+			perror("Error");
 			return (-1);
 		}
 		return (0);
 	}
 	return (-1);
 }
+
 int	main(int ac, char **ag, char **envp)
 {
 	t_pipex	pipex_p;
@@ -273,6 +298,7 @@ int	main(int ac, char **ag, char **envp)
 
 	i = 0;
 	init_pipex(&pipex_p);
+	pipex_p.pid = malloc(sizeof(pid_t) * (1024));
 	if (check_args(&pipex_p, ac, ag) == -1)
 		return (0);
 	if (pipex_p.here_doc == false)
@@ -291,9 +317,15 @@ int	main(int ac, char **ag, char **envp)
 	{
 		if (exec_pipex(&pipex_p, i, envp) == -1)
 			return (-1);
+		printf("i = %d\n", i);
 		i++;
 	}
-	printf("ici");
+	i = 0;
+	while (i < pipex_p.cmd_count)
+	{
+		waitpid(pipex_p.pid[i], NULL, 0);
+		i++;
+	}
 	clean_pipex(&pipex_p);
 	return (0);
 }
@@ -450,10 +482,7 @@ int	check_args(t_pipex *pipex_p, int ac, char **ag)
 	char	*limiter;
 
 	if (ac < 5)
-	{
-		// ft_printf("Error: missing arguments\n");
 		return (-1);
-	}
 	if (ft_strncmp(ag[1], "here_doc", 8) == 0)
 	{
 		pipex_p->here_doc = true;
@@ -461,18 +490,23 @@ int	check_args(t_pipex *pipex_p, int ac, char **ag)
 		limiter = ft_strdup(ag[2]);
 		pipex_p->limiter = ft_strjoin(limiter, "\n");
 		free(limiter);
-		pipex_p->out_fd = open(ag[ac - 1], O_CREAT | O_RDWR | O_APPEND, 0644);
+		pipex_p->out_fd = open(ag[ac - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
 		return (0);
 	}
-	if (ft_strncmp(ag[1], "/dev/urandom", ft_strlen(ag[1])) == 0)
+	if (ft_strncmp(ag[1], "/dev/urandom", ft_strlen(ag[1])) == 0
+		|| ft_strncmp(ag[1], "/dev/random", ft_strlen(ag[1])) == 0)
 		pipex_p->is_invalid_infile = true;
+	if (ft_strncmp(ag[1], "/dev/urandom", ft_strlen(ag[1])) == 0)
+		pipex_p->random = file_urandom;
+	if (ft_strncmp(ag[1], "/dev/random", ft_strlen(ag[1])) == 0)
+		pipex_p->random = file_random;
 	f1 = open(ag[1], O_RDONLY);
-	f2 = open(ag[ac - 1], O_CREAT | O_RDWR | O_APPEND, 0644);
+	f2 = open(ag[ac - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
 	pipex_p->in_fd = f1;
 	pipex_p->out_fd = f2;
 	if (f1 < 0 || f2 < 0)
 	{
-		ft_printf("Error: invalid file\n");
+		perror("Error");
 		unlink(ag[ac - 1]);
 		close_all(pipex_p);
 		return (-1);
@@ -492,5 +526,7 @@ int	*init_pipex(t_pipex *pipex)
 	pipex->cmd_args = NULL;
 	pipex->cmd_count = 0;
 	pipex->limiter = NULL;
+	pipex->random = file_urandom;
+	pipex->pid = NULL;
 	return (0);
 }
