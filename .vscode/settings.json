@@ -56,5 +56,8 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
-  "functionHeaderExtension.headerFilePath": "/nfs/homes/asuc/Documents/42/All Project/Pipex/pipex.h"
+  "functionHeaderExtension.headerFilePath": "/home/asuc/Documents/42/Pipex/pipex.h",
+  "files.associations": {
+    "pipex.h": "c"
+  }
 }

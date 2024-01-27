@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/01/22 16:53:52 by asuc             ###   ########.fr        #
+#    Updated: 2024/01/26 21:49:39 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,7 +19,17 @@ NAME		=	pipex
 COMP		=	clang
 CFLAGS		=	-Wall -Werror -Wextra
 libft		=	Libft/
-SRC			=	srcs/pipex.c
+SRC			=	srcs/pipex.c \
+				srcs/random_utils.c \
+				srcs/pipe.c \
+				srcs/pipe_utils.c \
+				srcs/invalid_file.c \
+				srcs/here_doc.c \
+				srcs/here_doc_utils.c \
+				srcs/command_parsing.c \
+				srcs/command_parsing_utils.c \
+				srcs/clean.c \
+				srcs/check_args.c 
 
 OBJ = $(SRC:.c=.o)
 
