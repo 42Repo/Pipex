@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:16:56 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 03:02:03 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:20:02 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,15 +36,17 @@ static int	handle_doc(t_pipex *pipex_p, char *limiter_arg, char *outfile_arg)
 static int	open_files(t_pipex *pipex_p, char *infile_arg, char *outfile_arg)
 {
 	pipex_p->in_fd = open(infile_arg, O_RDONLY);
+	if (pipex_p->in_fd < 0)
+		perror(infile_arg);
 	pipex_p->out_fd = open(outfile_arg, O_CREAT | O_RDWR | O_TRUNC, 0644);
+	if (pipex_p->out_fd < 0)
+		perror(outfile_arg);
 	if (pipex_p->in_fd < 0 || pipex_p->out_fd < 0)
 	{
-		perror("Error opening file");
+		if (pipex_p->in_fd >= 0)
+			close(pipex_p->in_fd);
 		if (pipex_p->out_fd >= 0)
-		{
-			unlink(outfile_arg);
 			close(pipex_p->out_fd);
-		}
 		return (-1);
 	}
 	return (0);

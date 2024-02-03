@@ -6,23 +6,11 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:06:10 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 02:39:31 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:37:01 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../pipex.h"
-
-static char	**free_all(char ***cmd_args, int i)
-{
-
-	while (i >= 0)
-	{
-		free((*cmd_args)[i]);
-		i--;
-	}
-	free((*cmd_args));
-	return (NULL);
-}
 
 static char	**create_tmp_path(char **path, char *first_arg)
 {
@@ -38,7 +26,12 @@ static char	**create_tmp_path(char **path, char *first_arg)
 		tmp_path[i] = ft_strjoin(path[i], first_arg);
 		if (tmp_path[i] == NULL)
 		{
-			free_all(&tmp_path, i);
+			while (i >= 0)
+			{
+				free((tmp_path)[i]);
+				i--;
+			}
+			free((tmp_path));
 			return (NULL);
 		}
 		i++;
@@ -57,20 +50,14 @@ static int	validate_assign_cmd(t_pipex *pipex_p, char **tmp_path, char *cmd)
 		{
 			pipex_p->cmd_paths[pipex_p->cmd_count] = ft_strdup(cmd);
 			if (pipex_p->cmd_paths[pipex_p->cmd_count] == NULL)
-			{
-				free_all(&(pipex_p->cmd_paths), pipex_p->cmd_count - 1);
-				return (-1);
-			}
+				return (fre_all(&(pipex_p->cmd_paths), pipex_p->cmd_count - 1));
 			break ;
 		}
 		if (access(tmp_path[i], F_OK) == 0 && access(tmp_path[i], X_OK) == 0)
 		{
 			pipex_p->cmd_paths[pipex_p->cmd_count] = ft_strdup(tmp_path[i]);
 			if (pipex_p->cmd_paths[pipex_p->cmd_count] == NULL)
-			{
-				free_all(&(pipex_p->cmd_paths), pipex_p->cmd_count - 1);
-				return (-1);
-			}
+				return (fre_all(&(pipex_p->cmd_paths), pipex_p->cmd_count - 1));
 			break ;
 		}
 		i++;
@@ -83,17 +70,14 @@ static int	parse_cmds_loop(t_pipex *pipex_p, char **ag, int ac, char **path)
 	char	**tmp_path;
 	int		j;
 	char	**ag2;
+	int		i;
 
-	(void)ag;
 	j = 2;
 	while (j < ac - 1)
 	{
 		ag2 = ft_split(ag[j], ' ');
 		if (ag2 == NULL)
-		{
-			free_tab(&pipex_p->cmd_paths);
-			return (-1);
-		}
+			return (free_tab(&pipex_p->cmd_paths));
 		tmp_path = create_tmp_path(path, ag2[0]);
 		if (tmp_path == NULL)
 		{
@@ -101,14 +85,11 @@ static int	parse_cmds_loop(t_pipex *pipex_p, char **ag, int ac, char **path)
 			free_tab(&ag2);
 			return (-1);
 		}
-		if (validate_assign_cmd(pipex_p, tmp_path, ag2[0]) == -1)
-		{
-			free_tab(&tmp_path);
-			free_tab(&ag2);
-			return (-1);
-		}
+		i = validate_assign_cmd(pipex_p, tmp_path, ag2[0]);
 		free_tab(&ag2);
 		free_tab(&tmp_path);
+		if (i == -1)
+			return (-1);
 		pipex_p->cmd_count++;
 		j++;
 	}

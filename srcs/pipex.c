@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 03:02:28 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:22:53 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,24 +60,6 @@ static int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 	return (0);
 }
 
-static int	*init_pipex(t_pipex *pipex)
-{
-	if (pipex == NULL)
-		return (NULL);
-	pipex->in_fd = 0;
-	pipex->out_fd = 0;
-	pipex->here_doc = false;
-	pipex->is_invalid_infile = false;
-	pipex->cmd_paths = NULL;
-	pipex->cmd_args = NULL;
-	pipex->cmd_count = 0;
-	pipex->limiter = NULL;
-	pipex->random = file_urandom;
-	pipex->pid = NULL;
-	random_init(pipex);
-	return (0);
-}
-
 static int	init_and_check(t_pipex *pipex_p, int ac, char **ag)
 {
 	init_pipex(pipex_p);
@@ -115,20 +97,14 @@ int	main(int ac, char **ag, char **envp)
 	int		i;
 
 	if (ac < 5)
-		return (ft_putstr_fd("Error: not enough arguments\n", 1));
+		return (ft_putstr_fd("Error: not enough arguments\n", 2));
 	if (init_and_check(&pipex_p, ac, ag) == -1)
 	{
 		unlink(pipex_p.random_name);
 		return (-1);
 	}
 	if (parse_cmd_and_args(&pipex_p, ac, ag, envp) == -1)
-	{
-		unlink(pipex_p.random_name);
-		close_all(&pipex_p);
-		free(pipex_p.limiter);
-		free(pipex_p.pid);
-		return (-1);
-	}
+		return (free_parsed_cmds(&pipex_p));
 	i = 0;
 	while (i < pipex_p.cmd_count)
 	{
@@ -138,10 +114,7 @@ int	main(int ac, char **ag, char **envp)
 	}
 	i = 0;
 	while (i < pipex_p.cmd_count)
-	{
-		waitpid(pipex_p.pid[i], NULL, 0);
-		i++;
-	}
+		waitpid(pipex_p.pid[i++], NULL, 0);
 	unlink(pipex_p.random_name);
 	clean_pipex(&pipex_p, 1);
 	return (0);

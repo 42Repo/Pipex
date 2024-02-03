@@ -6,13 +6,13 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:41:25 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 02:10:31 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:33:22 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../pipex.h"
 
-char	**free_all(char **cmd_args, int i)
+static char	**free_all_paths(char **cmd_args, int i)
 {
 	int	j;
 
@@ -43,14 +43,14 @@ static char	**add_slash(char ***cmd_args)
 		free((*cmd_args)[i]);
 		if (tmp == NULL)
 		{
-			free_all(*cmd_args, i - 1);
+			free_all_paths(*cmd_args, i - 1);
 			free(tmp);
 			return (NULL);
 		}
 		(*cmd_args)[i] = ft_strdup(tmp);
 		if ((*cmd_args)[i] == NULL)
 		{
-			free_all(*cmd_args, i - 1);
+			free_all_paths(*cmd_args, i - 1);
 			free(tmp);
 			return (NULL);
 		}
@@ -94,4 +94,15 @@ int	init_paths(char ***path, char **envp)
 	if (*path == NULL)
 		return (-1);
 	return (0);
+}
+
+int	fre_all(char ***cmd_args, int i)
+{
+	while (i >= 0)
+	{
+		free((*cmd_args)[i]);
+		i--;
+	}
+	free((*cmd_args));
+	return (-1);
 }

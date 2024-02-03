@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:13:29 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 03:05:29 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:35:19 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ int	close_all(t_pipex *pipex_p)
 	return (0);
 }
 
-void	free_tab(char ***tab)
+int	free_tab(char ***tab)
 {
 	int	i;
 
@@ -32,6 +32,7 @@ void	free_tab(char ***tab)
 		i++;
 	}
 	free(*tab);
+	return (-1);
 }
 
 int	clean_pipex(t_pipex *pipex_p, int mode)

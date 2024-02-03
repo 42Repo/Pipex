@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/01/26 21:49:39 by asuc             ###   ########.fr        #
+#    Updated: 2024/02/03 03:08:48 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -29,7 +29,8 @@ SRC			=	srcs/pipex.c \
 				srcs/command_parsing.c \
 				srcs/command_parsing_utils.c \
 				srcs/clean.c \
-				srcs/check_args.c 
+				srcs/check_args.c \
+				srcs/pipex_utils.c
 
 OBJ = $(SRC:.c=.o)
 

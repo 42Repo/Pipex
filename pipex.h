@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:44:39 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/26 21:51:27 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:37:03 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,7 +53,7 @@ int		check_exec_command(t_pipex *pipex_p, int i);
 int		error_pipex(char *error_msg);
 int		init_paths(char ***path, char **envp);
 int		close_all(t_pipex *pipex_p);
-void	free_tab(char ***tab);
+int		free_tab(char ***tab);
 void	error_exit_invalid(t_pipex *pipex_p, int pipefd[][2], int fd);
 int		ft_tablen(char **tab);
 void	error_exit_fd(char *error_msg, int fd);
@@ -69,5 +69,8 @@ int		here_doc_exec(t_pipex *pipex_p, int i, char **envp,
 int		parse_cmds(t_pipex *pipex_p, char **ag, int ac, char **envp);
 int		clean_pipex(t_pipex *pipex_p, int mode);
 int		check_args(t_pipex *pipex_p, int ac, char **ag);
+int		*init_pipex(t_pipex *pipex);
+int		free_parsed_cmds(t_pipex *pipex_p);
+int		fre_all(char ***cmd_args, int i);
 
 #endif
