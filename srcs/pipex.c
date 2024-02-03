@@ -6,11 +6,33 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/27 19:52:21 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:02:28 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../pipex.h"
+
+static int	free_all(char ****cmd_args, int i)
+{
+	int	j;
+	int	k;
+
+	j = 0;
+	k = 0;
+	while (i >= 0)
+	{
+		j = 0;
+		while ((*cmd_args)[i][j])
+		{
+			free((*cmd_args)[i][j]);
+			j++;
+		}
+		free((*cmd_args)[i]);
+		i--;
+	}
+	free((*cmd_args));
+	return (-1);
+}
 
 static int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 {
@@ -28,7 +50,10 @@ static int	parse_args(t_pipex *pipex_p, char **ag, int ac)
 	{
 		pipex_p->cmd_args[j] = ft_split(ag[i], ' ');
 		if (pipex_p->cmd_args[j] == NULL)
+		{
+			free_all(&(pipex_p->cmd_args), j - 1);
 			return (-1);
+		}
 		i++;
 		j++;
 	}
@@ -69,15 +94,18 @@ static int	parse_cmd_and_args(t_pipex *pipex_p, int ac, char **ag, char **envp)
 	if (pipex_p->here_doc == false)
 	{
 		if (parse_cmds(pipex_p, ag, ac, envp) == -1)
-			return (clean_pipex(pipex_p, 0));
+			return (-1);
 	}
 	else
 	{
 		if (parse_cmds(pipex_p, ag + 1, ac - 1, envp) == -1)
-			return (clean_pipex(pipex_p, 0));
+			return (-1);
 	}
 	if (parse_args(pipex_p, ag, ac) == -1)
-		return (clean_pipex(pipex_p, 1));
+	{
+		free_tab(&pipex_p->cmd_paths);
+		return (-1);
+	}
 	return (0);
 }
 
@@ -86,10 +114,21 @@ int	main(int ac, char **ag, char **envp)
 	t_pipex	pipex_p;
 	int		i;
 
+	if (ac < 5)
+		return (ft_putstr_fd("Error: not enough arguments\n", 1));
 	if (init_and_check(&pipex_p, ac, ag) == -1)
+	{
+		unlink(pipex_p.random_name);
 		return (-1);
+	}
 	if (parse_cmd_and_args(&pipex_p, ac, ag, envp) == -1)
+	{
+		unlink(pipex_p.random_name);
+		close_all(&pipex_p);
+		free(pipex_p.limiter);
+		free(pipex_p.pid);
 		return (-1);
+	}
 	i = 0;
 	while (i < pipex_p.cmd_count)
 	{

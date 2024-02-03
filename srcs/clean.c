@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:13:29 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/27 19:45:26 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/03 03:05:29 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,9 +46,9 @@ int	clean_pipex(t_pipex *pipex_p, int mode)
 		i++;
 	}
 	free(pipex_p->cmd_paths);
+	close_all(pipex_p);
 	if (pipex_p->limiter != NULL)
 		free(pipex_p->limiter);
-	close_all(pipex_p);
 	if (mode == 0)
 		return (-1);
 	i = 0;
