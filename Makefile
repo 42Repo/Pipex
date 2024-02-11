@@ -6,17 +6,17 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/02/03 03:08:48 by asuc             ###   ########.fr        #
+#    Updated: 2024/02/11 11:06:23 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-BGreen		=	$(shell echo "\033[1;32m")
-RESET		=	$(shell echo "\033[0m")
-BRed		=	$(shell echo "\033[1;31m")
-BCyan		=	$(shell echo "\033[1;36m")
-Green		=	$(shell echo "\033[0;32m")
+BGreen		=	\033[1;32m
+RESET		=	\033[0m
+BRed		=	\033[1;31m
+BCyan		=	\033[1;36m
+Green		=	\033[0;32m
 NAME		=	pipex
-COMP		=	clang
+COMP		=	cc
 CFLAGS		=	-Wall -Werror -Wextra
 libft		=	Libft/
 SRC			=	srcs/pipex.c \
@@ -49,8 +49,7 @@ all : $(NAME)
 	@if [ $(CURR) -eq 0 ]; then \
 		echo "\n$(BCyan)Compiling object files for $(NAME)...$(RESET)\n"; \
 	fi
-	@$(COMP) -gdwarf-4 -fPIE $(CFLAGS) -o $@ -c $<
-	@$(B)
+	@$(COMP) $(CFLAGS) -o $@ -c $<
 	@$(call update_progress)
 
 start :
@@ -59,7 +58,7 @@ start :
 $(NAME) : $(OBJ)
 	@make --quiet --no-print-directory -C $(libft)
 	@cp $(libft)libft.a libft.a
-	@clang -gdwarf-4 -fPIE $(CFLAGS) -o $(NAME) $(OBJ) libft.a
+	@$(COMP) $(CFLAGS) -o $(NAME) $(OBJ) libft.a
 	@echo "\n$(BGreen)Compilation Final $(NAME)$(RESET)"
 
 clean :
@@ -70,7 +69,7 @@ clean :
 fclean : clean
 	@make fclean --quiet --no-print-directory -C $(libft)
 	@rm -f $(NAME) libft.a
-	@echo "$(BRed)Erase $(NAME), libft.a(RESET)"
+	@echo "$(BRed)Erase $(NAME), libft.a$(RESET)"
 
 valgrind: all
 	@valgrind --trace-children=yes --track-fds=yes --log-fd=2 --error-limit=no --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) in cat cat out
