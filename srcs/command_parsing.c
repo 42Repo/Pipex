@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:06:10 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 03:37:01 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/11 11:01:54 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,6 +65,13 @@ static int	validate_assign_cmd(t_pipex *pipex_p, char **tmp_path, char *cmd)
 	return (0);
 }
 
+static int	error_free(t_pipex *pipex_p, char ***ag2)
+{
+	free_tab(ag2);
+	free_tab(&pipex_p->cmd_paths);
+	return (-1);
+}
+
 static int	parse_cmds_loop(t_pipex *pipex_p, char **ag, int ac, char **path)
 {
 	char	**tmp_path;
@@ -80,11 +87,7 @@ static int	parse_cmds_loop(t_pipex *pipex_p, char **ag, int ac, char **path)
 			return (free_tab(&pipex_p->cmd_paths));
 		tmp_path = create_tmp_path(path, ag2[0]);
 		if (tmp_path == NULL)
-		{
-			free_tab(&pipex_p->cmd_paths);
-			free_tab(&ag2);
-			return (-1);
-		}
+			return (error_free(pipex_p, &ag2));
 		i = validate_assign_cmd(pipex_p, tmp_path, ag2[0]);
 		free_tab(&ag2);
 		free_tab(&tmp_path);
