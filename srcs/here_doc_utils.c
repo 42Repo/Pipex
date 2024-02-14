@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:26:31 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/14 11:19:19 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/14 12:57:58 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,7 @@ static int	read_line_and_compare(t_pipex *pipex, char **line)
 	*line = get_next_line(0);
 	if (*line == NULL)
 	{
-		ft_putstr_fd("pipex: warning: here-document delimited by end-of-file",
+		ft_putstr_fd("pipex: warning: here-document delimited by end-of-file\n",
 			2);
 		return (1);
 	}

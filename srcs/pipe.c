@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:27:45 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/14 08:58:19 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/14 12:55:40 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,11 +25,11 @@ static void	pipe_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
 	close(pipex_p->out_fd);
 	if (check_exec_command(pipex_p, i) == 0)
 		execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+	ft_putstr_fd("pipex: command not found\n", STDERR_FILENO);
 	close(0);
 	close(1);
 	close(2);
 	clean_pipex(pipex_p, 1);
-	perror("execve");
 	exit(EXIT_FAILURE);
 }
 
@@ -102,10 +102,10 @@ void	pipe_first_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
 	close(pipex_p->out_fd);
 	if (check_exec_command(pipex_p, i) == 0)
 		execve(pipex_p->cmd_paths[i], pipex_p->cmd_args[i], envp);
+	ft_putstr_fd("pipex: command not found\n", STDERR_FILENO);
 	close(0);
 	close(1);
 	close(2);
 	clean_pipex(pipex_p, 1);
-	perror("execve");
 	exit(EXIT_FAILURE);
 }
