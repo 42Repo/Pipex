@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/11 19:42:09 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/14 08:47:25 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/14 14:17:12 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,7 +63,7 @@ static int	init_and_check(t_pipex *pipex_p, int ac, char **ag)
 	init_pipex(pipex_p);
 	pipex_p->pid = malloc(sizeof(pid_t) * (ac - 3));
 	if (pipex_p->pid == NULL)
-		return (0);
+		return (-1);
 	if (check_args(pipex_p, ac, ag) == -1)
 		return (clean_pipex(pipex_p, 1));
 	return (0);
