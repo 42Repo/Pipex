@@ -1,4 +1,0 @@
-Quand ./pipex qwdqwd ls cat cat out alors on arrete alors qu'on doit juste ne pas faire la premiere commande si on on ne peux pas lire le fichier
-dans le here_doc dans une ligne vide on doit warning mais pas dans une ligne pas vide
-exemple << EOF
-DANS BASH
