@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:27:45 by asuc              #+#    #+#             */
-/*   Updated: 2024/02/03 03:04:24 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/14 08:58:19 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,6 +86,14 @@ int	exec_pipex(t_pipex *pipex_p, int i, char **envp)
 
 void	pipe_first_exec(t_pipex *pipex_p, int i, char **envp, int pipefd[][2])
 {
+	if (pipex_p->in_fd < 0)
+	{
+		close((*pipefd)[0]);
+		close((*pipefd)[1]);
+		close(pipex_p->out_fd);
+		clean_pipex(pipex_p, 1);
+		exit(EXIT_FAILURE);
+	}
 	dup2(pipex_p->in_fd, STDIN_FILENO);
 	dup2((*pipefd)[1], STDOUT_FILENO);
 	close((*pipefd)[0]);

@@ -6,7 +6,7 @@
 /*   By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/26 21:26:31 by asuc              #+#    #+#             */
-/*   Updated: 2024/01/26 21:57:44 by asuc             ###   ########.fr       */
+/*   Updated: 2024/02/14 11:19:19 by asuc             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,11 @@ static int	read_line_and_compare(t_pipex *pipex, char **line)
 {
 	*line = get_next_line(0);
 	if (*line == NULL)
-		*line = ft_strdup("");
+	{
+		ft_putstr_fd("pipex: warning: here-document delimited by end-of-file",
+			2);
+		return (1);
+	}
 	if (ft_strlen(*line) == ft_strlen(pipex->limiter) && ft_strncmp(*line,
 			pipex->limiter, ft_strlen(pipex->limiter)) == 0)
 		return (1);
@@ -52,6 +56,8 @@ int	here_doc(t_pipex *pipex)
 
 	bol = 0;
 	line = ft_strdup("");
+	if (line == NULL)
+		return (-1);
 	while (1)
 	{
 		free(line);
@@ -60,7 +66,7 @@ int	here_doc(t_pipex *pipex)
 			return (-1);
 		if (bol == 0)
 		{
-			ft_printf("pipe heredoc> ");
+			ft_printf("> ");
 			bol = 1;
 		}
 		if (read_line_and_compare(pipex, &line))

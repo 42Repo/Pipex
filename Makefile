@@ -6,7 +6,7 @@
 #    By: asuc <asuc@student.42angouleme.fr>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/08/12 17:42:16 by asuc              #+#    #+#              #
-#    Updated: 2024/02/11 11:06:23 by asuc             ###   ########.fr        #
+#    Updated: 2024/02/14 10:01:33 by asuc             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -17,7 +17,7 @@ BCyan		=	\033[1;36m
 Green		=	\033[0;32m
 NAME		=	pipex
 COMP		=	cc
-CFLAGS		=	-Wall -Werror -Wextra
+CFLAGS		=	-Wall -Werror -Wextra -g
 libft		=	Libft/
 SRC			=	srcs/pipex.c \
 				srcs/random_utils.c \
@@ -72,10 +72,10 @@ fclean : clean
 	@echo "$(BRed)Erase $(NAME), libft.a$(RESET)"
 
 valgrind: all
-	@valgrind --trace-children=yes --track-fds=yes --log-fd=2 --error-limit=no --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) in cat cat out
+	@valgrind --trace-children=yes --track-fds=yes --log-fd=2 --error-limit=no --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) qwdqwd ls cat out
 
 valgrindAll : all
-	@valgrind --track-fds=yes --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) here_doc maellapute cat cat out
+	@valgrind --track-fds=yes --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) here_doc EOF cat cat out
 
 test: all
 	@./$(NAME) in wc wc out
